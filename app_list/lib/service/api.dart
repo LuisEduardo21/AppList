@@ -1,43 +1,50 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:app_list/utils/motels.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 class BaseService {
-  final String apiUrl = 'https://jsonkeeper.com/b/1IXK';
+  static const String _apiUrl = 'https://jsonkeeper.com/b/1IXK';
+  static const String _dataKey = 'data';
+  static const String _moteisKey = 'moteis';
 
-  // Função personalizada para criar um cliente HTTP que ignora a verificação SSL
   Future<http.Response> _fetchDataWithoutSSLValidation() async {
     final HttpClient httpClient = HttpClient()
       ..badCertificateCallback =
           (X509Certificate cert, String host, int port) => true;
 
     final IOClient ioClient = IOClient(httpClient);
-    return await ioClient.get(Uri.parse(apiUrl));
+    return await ioClient
+        .get(Uri.parse(_apiUrl))
+        .timeout(const Duration(seconds: 10)); // Timeout de 10 segundos
   }
 
-  Future<dynamic> fetchData() async {
+  Future<List<Motel>> fetchData() async {
     try {
-      // Faz a requisição com a validação de certificado ignorada
+      print("Iniciando requisição para: $_apiUrl");
       final response = await _fetchDataWithoutSSLValidation();
-      print(response.body);
+
+      print("Código de status: ${response.statusCode}");
+      print("Resposta bruta do servidor: ${response.body}");
 
       if (response.statusCode == 200) {
-        // Tente fazer a decodificação do JSON
         final decodedResponse = jsonDecode(response.body);
 
-        if (decodedResponse is List) {
-          return decodedResponse;
-        } else if (decodedResponse is Map) {
-          print("${decodedResponse}");
-          return decodedResponse;
-        } else {
-          throw Exception('Formato de dados inesperado');
+        if (decodedResponse is! Map<String, dynamic> ||
+            !decodedResponse.containsKey(_dataKey) ||
+            decodedResponse[_dataKey] is! Map<String, dynamic> ||
+            !decodedResponse[_dataKey].containsKey(_moteisKey) ||
+            decodedResponse[_dataKey][_moteisKey] is! List) {
+          throw Exception("Erro: Estrutura de resposta inesperada.");
         }
+
+        final List<dynamic> moteisJson = decodedResponse[_dataKey][_moteisKey];
+        return moteisJson.map((json) => Motel.fromJson(json)).toList();
       } else {
         throw Exception(
-            'Erro ao carregar os dados. Status: ${response.statusCode}');
+            'Erro ao carregar os dados. Status: ${response.statusCode}, Resposta: ${response.body}');
       }
     } catch (e) {
       throw Exception('Erro ao conectar: $e');
