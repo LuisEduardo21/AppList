@@ -20,12 +20,52 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // Função para filtrar as suítes com base no filtro selecionado
+  List<Suite> filtrarSuites(List<Suite> suites, String filtro) {
+    switch (filtro) {
+      case "Com Desconto":
+        return suites.where((suite) {
+          return suite.periodos.any((periodo) => periodo.desconto != null);
+        }).toList();
+      case "Disponíveis":
+        return suites.where((suite) => suite.qtd > 0).toList();
+      case "Hidro":
+        return suites.where((suite) {
+          return suite.itens
+              .any((item) => item.nome.toLowerCase().contains("hidro"));
+        }).toList();
+      default:
+        return suites;
+    }
+  }
+
+  // Função para filtrar os motéis com base no filtro selecionado
+  List<Motel> filtrarMoteis(List<Motel> motels, String filtro) {
+    return motels.map((motel) {
+      return Motel(
+        fantasia: motel.fantasia,
+        logo: motel.logo,
+        bairro: motel.bairro,
+        distancia: motel.distancia,
+        qtdFavoritos: motel.qtdFavoritos,
+        suites:
+            filtrarSuites(motel.suites, filtro), // Filtra as suítes do motel
+        qtdAvaliacoes: motel.qtdAvaliacoes,
+        media: motel.media,
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BaseView<HomeModel>(
       model: HomeModel(),
       onModelReady: (model) => model.onInit(context),
       builder: (context, model, child) {
+        final motelsFiltrados = filtrarMoteis(model.listaMoteis, filtroAtivo);
+        final suitesFiltradas =
+            filtrarSuites(model.primeirasSuites, filtroAtivo);
+
         return Scaffold(
           appBar: AppBar(
             title: Row(
@@ -40,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Carrossel de suítes em destaque
+              // Carrossel de Suítes Filtradas
               SizedBox(
                 height: 180,
                 child: Column(
@@ -48,17 +88,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
-                        itemCount: model.primeirasSuites.length,
+                        itemCount: suitesFiltradas.length,
                         itemBuilder: (context, index) {
-                          final suite = model.primeirasSuites[index];
+                          final suite = suitesFiltradas[index];
                           return _buildCarrosselItem(suite);
                         },
                       ),
                     ),
-                    SizedBox(height: 8),
+                    SizedBox(height: 10),
                     SmoothPageIndicator(
                       controller: _pageController,
-                      count: model.primeirasSuites.length,
+                      count: suitesFiltradas.length,
                       effect: WormEffect(
                         activeDotColor: Colors.redAccent,
                         dotHeight: 8,
@@ -82,12 +122,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // Lista de motéis com suítes expansíveis
-              Expanded(
+              // Lista de Motéis Filtrados
+              Flexible(
                 child: ListView.builder(
-                  itemCount: model.listaMoteis.length,
+                  itemCount: motelsFiltrados.length,
                   itemBuilder: (context, index) {
-                    final motel = model.listaMoteis[index];
+                    final motel = motelsFiltrados[index];
                     return _buildMotelItem(motel);
                   },
                 ),
@@ -99,9 +139,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Widget para construir um item do carrossel
   Widget _buildCarrosselItem(Suite suite) {
     final primeiroPeriodo =
         suite.periodos.isNotEmpty ? suite.periodos.first : null;
+    final valorComDesconto = primeiroPeriodo?.desconto != null
+        ? primeiroPeriodo!.valor *
+            (1 - primeiroPeriodo.desconto!.desconto / 100)
+        : null;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 12),
@@ -133,20 +178,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   if (primeiroPeriodo?.desconto != null)
                     Text(
-                        "🔥 ${primeiroPeriodo!.desconto!.desconto}% de desconto"),
-                  if (primeiroPeriodo != null)
-                    Text(
-                        "A partir de R\$ ${primeiroPeriodo.valor.toStringAsFixed(2)}"),
-                  SizedBox(height: 6),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                      "🔥 ${primeiroPeriodo!.desconto!.desconto}% de desconto",
+                      style: TextStyle(color: Colors.red),
                     ),
-                    child: Text("Reservar"),
-                  ),
+                  if (valorComDesconto != null)
+                    Text(
+                      "De R\$ ${primeiroPeriodo!.valor.toStringAsFixed(2)} por R\$ ${valorComDesconto.toStringAsFixed(2)}",
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  if (primeiroPeriodo != null &&
+                      primeiroPeriodo.desconto == null)
+                    Text(
+                      "A partir de R\$ ${primeiroPeriodo.valor.toStringAsFixed(2)}",
+                      style: TextStyle(fontSize: 14),
+                    ),
                 ],
               ),
             ),
@@ -156,69 +201,149 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Widget para construir um item da lista de motéis
   Widget _buildMotelItem(Motel motel) {
     return Card(
       margin: EdgeInsets.all(8),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ExpansionTile(
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            motel.logo,
-            height: 50,
-            width: 50,
-            fit: BoxFit.cover,
+      child: Column(
+        children: [
+          ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                motel.logo,
+                height: 50,
+                width: 50,
+                fit: BoxFit.cover,
+              ),
+            ),
+            title: Text(motel.fantasia,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(motel.bairro, style: TextStyle(color: Colors.grey)),
+                Row(
+                  children: [
+                    Icon(Icons.star, color: Colors.amber, size: 20),
+                    SizedBox(width: 4),
+                    Text("${motel.media} (${motel.qtdAvaliacoes} avaliações)",
+                        style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        title: Text(motel.fantasia,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Text(motel.bairro, style: TextStyle(color: Colors.grey)),
-        trailing: IconButton(
-          onPressed: () {},
-          icon: Icon(Icons.favorite_border, color: Colors.grey),
-        ),
-        children:
-            motel.suites.map((suite) => _buildSuiteItem(suite, motel)).toList(),
+          SizedBox(
+            height: 450,
+            child: PageView.builder(
+              itemCount: motel.suites.length,
+              itemBuilder: (context, index) {
+                final suite = motel.suites[index];
+                return _buildSuiteItem(suite, motel);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // Widget para construir um item de suíte
   Widget _buildSuiteItem(Suite suite, Motel motel) {
     final primeiroPeriodo =
         suite.periodos.isNotEmpty ? suite.periodos.first : null;
+    final valorComDesconto = primeiroPeriodo?.desconto != null
+        ? primeiroPeriodo!.valor *
+            (1 - primeiroPeriodo.desconto!.desconto / 100)
+        : null;
 
-    return ListTile(
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.network(
-          suite.fotos.isNotEmpty ? suite.fotos.first : motel.logo,
-          height: 50,
-          width: 50,
-          fit: BoxFit.cover,
-        ),
-      ),
-      title: Text(suite.nome, style: TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Column(
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (primeiroPeriodo != null)
-            Text("A partir de R\$ ${primeiroPeriodo.valor.toStringAsFixed(2)}"),
-          Text("${suite.itens.length} itens disponíveis"),
+          // Imagem da suíte
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+            child: Image.network(
+              suite.fotos.isNotEmpty ? suite.fotos.first : motel.logo,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: Text(
+                suite.nome,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Exibir os itens da suíte
+                Wrap(
+                  spacing: 8,
+                  children: suite.itens
+                      .take(3)
+                      .map((item) => Chip(
+                            label: Text(item.nome),
+                            backgroundColor: Colors.grey[200],
+                          ))
+                      .toList(),
+                ),
+                if (suite.itens.length > 3)
+                  TextButton(
+                    onPressed: () {
+                      // Navegar para uma tela que exibe todos os itens
+                    },
+                    child:
+                        Text("ver todos", style: TextStyle(color: Colors.grey)),
+                  ),
+              ],
+            ),
+          ),
+          Divider(),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("2 horas",
+                        style: TextStyle(fontSize: 16, color: Colors.black54)),
+                    Text(
+                      valorComDesconto != null
+                          ? "De R\$ ${primeiroPeriodo!.valor.toStringAsFixed(2)} por R\$ ${valorComDesconto.toStringAsFixed(2)}"
+                          : "A partir de R\$ ${primeiroPeriodo?.valor.toStringAsFixed(2) ?? "Preço indisponível"}",
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
-      ),
-      trailing: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: Text("Reservar"),
       ),
     );
   }
 
+  // Widget para construir um botão de filtro
   Widget _filtroBotao(String texto, IconData icon) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 10),
