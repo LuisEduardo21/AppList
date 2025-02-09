@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 class HomeModel extends BaseViewModel {
   final BaseService _service = BaseService();
-  List<Motel> listaMoteis = []; // Alterado para List<Motel>
+  List<Motel> listaMoteis = [];
 
   List<Suite> get primeirasSuites {
     List<Suite> todasSuites = [];
@@ -21,7 +21,7 @@ class HomeModel extends BaseViewModel {
       var response = await _service.fetchData();
 
       if (response is List<Motel>) {
-        listaMoteis = response; // Agora é seguro atribuir diretamente
+        listaMoteis = response;
         notifyListeners();
       } else {
         throw Exception("Formato de resposta inválido.");

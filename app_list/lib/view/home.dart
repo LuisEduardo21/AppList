@@ -1,8 +1,10 @@
+import 'package:app_list/provider/CidadeProvider.dart';
 import 'package:app_list/utils/motels.dart';
 import 'package:app_list/utils/suites.dart';
 import 'package:app_list/view/base_service.dart';
 import 'package:app_list/view_model/home_model.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -13,6 +15,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String filtroAtivo = "Todos";
   final PageController _pageController = PageController();
+
+  // Lista de cidades disponíveis
+  final List<String> cidadesDisponiveis = [
+    "Recife",
+    "São Paulo",
+    "Rio de Janeiro",
+    "Belo Horizonte",
+    "Salvador",
+  ];
 
   void aplicarFiltro(String filtro) {
     setState(() {
@@ -48,16 +59,97 @@ class _HomeScreenState extends State<HomeScreen> {
         bairro: motel.bairro,
         distancia: motel.distancia,
         qtdFavoritos: motel.qtdFavoritos,
-        suites:
-            filtrarSuites(motel.suites, filtro), // Filtra as suítes do motel
+        suites: filtrarSuites(motel.suites, filtro),
         qtdAvaliacoes: motel.qtdAvaliacoes,
         media: motel.media,
       );
     }).toList();
   }
 
+  // Função para exibir o diálogo de escolha de cidades
+  Future<void> _mostrarDialogoCidades(BuildContext context) async {
+    final cidadeProvider = Provider.of<CidadeProvider>(context, listen: false);
+
+    final String? cidadeEscolhida = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Escolha uma cidade"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: cidadesDisponiveis.map((cidade) {
+                return ListTile(
+                  title: Text(cidade),
+                  onTap: () {
+                    Navigator.of(context).pop(cidade);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (cidadeEscolhida != null) {
+      cidadeProvider.selecionarCidade(cidadeEscolhida);
+    }
+  }
+
+  // Função para exibir o modal com todos os itens da suíte
+  void _mostrarItensSuiteModal(BuildContext context, Suite suite) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  "Todos os Itens da Suíte",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: suite.itens.length,
+                  itemBuilder: (context, index) {
+                    final item = suite.itens[index];
+                    return ListTile(
+                      title: Text(item.nome),
+                      leading: Icon(Icons.check_circle, color: Colors.green),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 16),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("Fechar"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cidadeProvider = Provider.of<CidadeProvider>(context);
+
     return BaseView<HomeModel>(
       model: HomeModel(),
       onModelReady: (model) => model.onInit(context),
@@ -71,8 +163,15 @@ class _HomeScreenState extends State<HomeScreen> {
             title: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Recife"),
-                Icon(Icons.arrow_drop_down, size: 28),
+                Text(
+                  cidadeProvider.cidadeSelecionada,
+                  style: TextStyle(color: Colors.white),
+                ),
+                IconButton(
+                  icon: Icon(Icons.arrow_drop_down,
+                      size: 28, color: Colors.white),
+                  onPressed: () => _mostrarDialogoCidades(context),
+                ),
               ],
             ),
             backgroundColor: Colors.redAccent,
@@ -80,7 +179,6 @@ class _HomeScreenState extends State<HomeScreen> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Carrossel de Suítes Filtradas
               SizedBox(
                 height: 180,
                 child: Column(
@@ -267,7 +365,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Imagem da suíte
           ClipRRect(
             borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
             child: Image.network(
@@ -291,7 +388,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Exibir os itens da suíte
                 Wrap(
                   spacing: 8,
                   children: suite.itens
@@ -305,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (suite.itens.length > 3)
                   TextButton(
                     onPressed: () {
-                      // Navegar para uma tela que exibe todos os itens
+                      _mostrarItensSuiteModal(context, suite); // Exibe o modal
                     },
                     child:
                         Text("ver todos", style: TextStyle(color: Colors.grey)),

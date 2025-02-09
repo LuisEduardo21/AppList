@@ -18,16 +18,12 @@ class BaseService {
     final IOClient ioClient = IOClient(httpClient);
     return await ioClient
         .get(Uri.parse(_apiUrl))
-        .timeout(const Duration(seconds: 10)); // Timeout de 10 segundos
+        .timeout(const Duration(seconds: 10));
   }
 
   Future<List<Motel>> fetchData() async {
     try {
-      print("Iniciando requisição para: $_apiUrl");
       final response = await _fetchDataWithoutSSLValidation();
-
-      print("Código de status: ${response.statusCode}");
-      print("Resposta bruta do servidor: ${response.body}");
 
       if (response.statusCode == 200) {
         final decodedResponse = jsonDecode(response.body);
