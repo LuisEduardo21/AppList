@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String filtroAtivo = "Todos";
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(initialPage: 0);
 
   // Lista de cidades disponíveis
   final List<String> cidadesDisponiveis = [
@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Função para filtrar as suítes com base no filtro selecionado
   List<Suite> filtrarSuites(List<Suite> suites, String filtro) {
+    if (suites == null) return [];
     switch (filtro) {
       case "Com Desconto":
         return suites.where((suite) {
@@ -194,15 +195,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     SizedBox(height: 10),
-                    SmoothPageIndicator(
-                      controller: _pageController,
-                      count: suitesFiltradas.length,
-                      effect: WormEffect(
-                        activeDotColor: Colors.redAccent,
-                        dotHeight: 8,
-                        dotWidth: 8,
-                      ),
-                    ),
+                    if (suitesFiltradas.isNotEmpty)
+                      SmoothPageIndicator(
+                        controller: _pageController,
+                        count: suitesFiltradas.length,
+                        effect: WormEffect(
+                          activeDotColor: Colors.redAccent,
+                          dotHeight: 8,
+                          dotWidth: 8,
+                        ),
+                      )
+                    else
+                      SizedBox()
                   ],
                 ),
               ),

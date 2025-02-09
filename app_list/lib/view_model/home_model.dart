@@ -5,8 +5,13 @@ import 'package:app_list/view_model/base_view_model.dart';
 import 'package:flutter/material.dart';
 
 class HomeModel extends BaseViewModel {
-  final BaseService _service = BaseService();
+  BaseService _service;
   List<Motel> listaMoteis = [];
+  String? erro; // Adiciona um campo para erro
+
+  HomeModel({BaseService? service}) : _service = service ?? BaseService();
+
+  set service(BaseService service) => _service = service;
 
   List<Suite> get primeirasSuites {
     List<Suite> todasSuites = [];
@@ -16,21 +21,18 @@ class HomeModel extends BaseViewModel {
     return todasSuites.take(5).toList();
   }
 
-  void onInit(BuildContext context) async {
+  Future<void> onInit(BuildContext context) async {
     try {
       var response = await _service.fetchData();
-
       if (response is List<Motel>) {
         listaMoteis = response;
-        notifyListeners();
+        erro = null;
       } else {
-        throw Exception("Formato de resposta inválido.");
+        erro = "Formato de resposta inválido.";
       }
     } catch (e) {
-      print("Erro ao buscar dados: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro ao carregar dados: $e")),
-      );
+      erro = "Erro ao buscar dados: $e";
     }
+    notifyListeners(); // Agora a UI pode reagir ao erro
   }
 }
