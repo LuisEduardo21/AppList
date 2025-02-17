@@ -4,6 +4,7 @@ import 'package:app_list/utils/suites.dart';
 import 'package:app_list/view/base_service.dart';
 import 'package:app_list/view_model/home_model.dart';
 import 'package:flutter/material.dart';
+import 'package:html_unescape/html_unescape.dart';
 import 'package:provider/provider.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
@@ -242,7 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Widget para construir um item do carrossel
+
   Widget _buildCarrosselItem(Suite suite) {
+    final unescape = HtmlUnescape();
     final primeiroPeriodo =
         suite.periodos.isNotEmpty ? suite.periodos.first : null;
     final valorComDesconto = primeiroPeriodo?.desconto != null
@@ -276,8 +279,10 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(suite.nome,
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    unescape.convert(suite.nome), // Decodifica o nome da suíte
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   if (primeiroPeriodo?.desconto != null)
                     Text(
                       "🔥 ${primeiroPeriodo!.desconto!.desconto}% de desconto",
